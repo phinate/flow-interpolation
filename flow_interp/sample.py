@@ -71,7 +71,7 @@ def make_data_hists2d(data_list, weight_list=None, num_bins = 20, filter_IQR = F
             bins = [np.linspace(min(x), max(x), num_bins), np.linspace(min(y), max(y), num_bins)]
             data_hists_all.append(np.histogram2d(x, y, bins=bins, density=True, weights=weights)[0])
         else:
-            hist, *bins = np.histogram2d(x, y, bins=bins, density=True, weights=weights)
+            hist, *bins = np.histogram2d(x, y, density=True, weights=weights)
             data_hists_all.append(hist)
         bins_x.append(bins[0])
         bins_y.append(bins[1])
