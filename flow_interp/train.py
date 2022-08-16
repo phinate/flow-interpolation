@@ -40,7 +40,7 @@ def train_loop(num_iter, flow, optimizer, batch_iterator, feature_scaler, use_we
 
         optimizer.zero_grad()
         loss = torch.mean(-flow.log_prob(inputs=inputs, context=context))
-        
+        losses[0].append(loss)
         loss.backward()
         optimizer.step()
 
