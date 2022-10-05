@@ -13,38 +13,77 @@ def _sample_flow(flow, feature_scaler, context_scaler=None, context=None, num_sa
 
 
 def hist2d_from_flows_with_error(
-    flow_list,  x_bins, y_bins, feature_scaler, context_scaler=None, context=None, num_samples=10000, density=False
+    flow_list,  x_bins, y_bins, feature_scaler, context_scaler=None, context=None, num_samples=10000, density=False, return_bins=False
 ):
     flow_samples = np.array([_sample_flow(flow, feature_scaler, context_scaler, context, num_samples) for flow in flow_list])
+   
 
-    if (len(np.array(x_bins).shape)) > 1:
-        hists = [
-                [
-                    np.histogram2d(data[:, 0], data[:, 1], bins=bins, density=density)[0]
-                    for data, bins in zip(
-                        flow_data, zip(x_bins, y_bins)
-                    )
+    if len(context) > 1:
+
+        if x_bins is None:
+            hists = [
+                    [
+                        np.histogram2d(data[:, 0], data[:, 1], density=density)[0]
+                        for data in flow_data
+                    ]
+                    for flow_data in flow_samples
                 ]
-                for flow_data in flow_samples
-            ]
+        else:
+            hists = [
+                    [
+                        np.histogram2d(data[:, 0], data[:, 1], bins=bins, density=density)[0]
+                        for data, bins in zip(
+                            flow_data, zip(x_bins, y_bins) 
+                        )
+                    ]
+                    for flow_data in flow_samples
+                ]
         
     else:
-        hists = np.array(
-            [
+        if x_bins is None:
+            hists = np.array(
                 [
-                    np.histogram2d(
-                        data[:, 0], data[:, 1], bins=[x_bins, y_bins], density=density
-                    )[0]
-                    for data in flow_data
+                    [
+                        np.histogram2d(
+                            data[:, 0], data[:, 1], density=density
+                        )[0]
+                        for data in flow_data
+                    ]
+                    for flow_data in flow_samples
                 ]
-                for flow_data in flow_samples
+            )
+        else:
+            hists = np.array(
+                [
+                    [
+                        np.histogram2d(
+                            data[:, 0], data[:, 1], bins=[x_bins, y_bins], density=density
+                        )[0]
+                        for data in flow_data
+                    ]
+                    for flow_data in flow_samples
+                ]
+            )
+
+    if return_bins:
+        bins = [
+            [
+                np.histogram2d(data[:, 0], data[:, 1], density=density)[1:]
+                for data in flow_data
             ]
-        )
+            for flow_data in flow_samples
+        ]
+        if len(hists) == 1:
+            return hists[0], None, bins
+        else:
+            hist_avg = np.mean(hists, axis=0)  # shape: [len(truth_masses), num_samples, 2]
+            hist_std = np.std(hists, axis=0)  # shape: [len(truth_masses), num_samples, 2]
+            return hist_avg, hist_std, bins
     if len(hists) == 1:
         return hists[0], None 
     hist_avg = np.mean(hists, axis=0)  # shape: [len(truth_masses), num_samples, 2]
     hist_std = np.std(hists, axis=0)  # shape: [len(truth_masses), num_samples, 2]
-    return hist_avg, hist_std
+    return hist_avg, hist_std 
 
 
 def ak_to_ndarray(arr):
@@ -54,7 +93,7 @@ def ak_to_ndarray(arr):
         .view((np.float64, len(arr.fields)))
     )
 
-def make_data_hists2d(data_list, weight_list=None, num_bins = 20, filter_IQR = False, quantiles=(0,0.2)):
+def make_data_hists2d(data_list, weight_list=None, num_bins = 20, bins=None, filter_IQR = False, quantiles=(0,0.2), density=True):
     data_hists_all = []
     bins_x = []
     bins_y = []
@@ -68,13 +107,16 @@ def make_data_hists2d(data_list, weight_list=None, num_bins = 20, filter_IQR = F
             IQR = Q3 - Q1
             mask = np.any(~((data < (Q1 - 1.5 * IQR)) | (data > (Q3 + 1.5 * IQR))), axis=1)
             data = data[mask]
-            bins = [np.linspace(min(x), max(x), num_bins), np.linspace(min(y), max(y), num_bins)]
-            data_hists_all.append(np.histogram2d(x, y, bins=bins, density=True, weights=weights)[0])
+            data_bins = [np.linspace(min(x), max(x), num_bins), np.linspace(min(y), max(y), num_bins)]
+            data_hists_all.append(np.histogram2d(x, y, bins=data_bins, density=density, weights=weights)[0])
+        elif bins is not None:
+            hist, *data_bins = np.histogram2d(x, y, density=density, weights=weights, bins=bins[i])
+            data_hists_all.append(hist) 
         else:
-            hist, *bins = np.histogram2d(x, y, density=True, weights=weights)
+            hist, *data_bins = np.histogram2d(x, y, density=density, weights=weights)
             data_hists_all.append(hist)
-        bins_x.append(bins[0])
-        bins_y.append(bins[1])
+        bins_x.append(data_bins[0])
+        bins_y.append(data_bins[1])
 
 
     data_hists_all = np.array(data_hists_all)
