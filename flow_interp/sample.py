@@ -13,7 +13,7 @@ def _sample_flow(flow, feature_scaler, context_scaler=None, context=None, num_sa
 
 
 def hist2d_from_flows_with_error(
-    flow_list,  x_bins, y_bins, feature_scaler, context_scaler=None, context=None, num_samples=10000, density=False, return_bins=False
+    flow_list,  x_bins, y_bins, feature_scaler, context_scaler=None, context=None, num_samples=10000, density=False, return_bins=False, normalized_counts = None
 ):
     flow_samples = np.array([_sample_flow(flow, feature_scaler, context_scaler, context, num_samples) for flow in flow_list])
    
@@ -65,6 +65,11 @@ def hist2d_from_flows_with_error(
                 ]
             )
 
+    if normalized_counts is not None:
+        norm_factor = normalized_counts / num_samples
+    else:
+        norm_factor = 1
+    
     if return_bins:
         bins = [
             [
@@ -74,15 +79,15 @@ def hist2d_from_flows_with_error(
             for flow_data in flow_samples
         ]
         if len(hists) == 1:
-            return hists[0], None, bins
+            return hists[0]*norm_factor, None, bins
         else:
-            hist_avg = np.mean(hists, axis=0)  # shape: [len(truth_masses), num_samples, 2]
-            hist_std = np.std(hists, axis=0)  # shape: [len(truth_masses), num_samples, 2]
+            hist_avg = np.mean(np.array(hists)*norm_factor, axis=0)  # shape: [len(truth_masses), num_samples, 2]
+            hist_std = np.std(np.array(hists)*norm_factor, axis=0)  # shape: [len(truth_masses), num_samples, 2]
             return hist_avg, hist_std, bins
     if len(hists) == 1:
-        return hists[0], None 
-    hist_avg = np.mean(hists, axis=0)  # shape: [len(truth_masses), num_samples, 2]
-    hist_std = np.std(hists, axis=0)  # shape: [len(truth_masses), num_samples, 2]
+        return hists[0]*norm_factor, None 
+    hist_avg = np.mean(np.array(hists)*norm_factor, axis=0)  # shape: [len(truth_masses), num_samples, 2]
+    hist_std = np.std(np.array(hists)*norm_factor, axis=0)  # shape: [len(truth_masses), num_samples, 2]
     return hist_avg, hist_std 
 
 
